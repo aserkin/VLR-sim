@@ -10,7 +10,7 @@ by MME:
 Other messages are silently ignored.
 
 Run:
-vlr.py <host> <port>
+vlr.py \<host\> \<port\>  
 
 <host> - IP address to listen to
 <port> - TCP port to listen to. SGsAP default port is 29118
