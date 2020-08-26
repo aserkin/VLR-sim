@@ -12,8 +12,8 @@ Other messages are silently ignored.
 Run:
 vlr.py \<host\> \<port\>  
 
-<host> - IP address to listen to
-<port> - TCP port to listen to. SGsAP default port is 29118
+\<host\> - IP address to listen to
+\<port\> - TCP port to listen to. SGsAP default port is 29118
 
 Run it manually or add to the systemd services:
   
