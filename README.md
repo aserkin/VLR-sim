@@ -1,21 +1,21 @@
-This is a try to simulate basic SGs procedures of VLR for MME.
+This is a try to simulate basic SGs procedures of VLR for MME.  
 In case you don't have VLR but need to test your MME installation for voice centric UEs
-and CS Fallback - this is your friend.
+and CS Fallback - this is your friend.  
 The program accepts SCTP connection from MME and answers four basic SGs messages initiated
-by MME:
+by MME:  
 - Location Update request
 - EPS detach indication
 - IMSI detach indication
 - MME failure
-Other messages are silently ignored.
+Other messages are silently ignored.  
 
-Run:
+Run:  
 vlr.py \<host\> \<port\>  
 
-\<host\> - IP address to listen to
-\<port\> - TCP port to listen to. SGsAP default port is 29118
+\<host\> - IP address to listen to  
+\<port\> - TCP port to listen to. SGsAP default port is 29118  
 
-Run it manually or add to the systemd services:
+Run it manually or add to the systemd services:  
   
 $ cat /etc/systemd/system/vlr.service  
  [Unit]  
@@ -32,5 +32,5 @@ $ cat /etc/systemd/system/vlr.service
  [Install]  
  WantedBy=multi-user.target  
   
-Configure VLR 10.20.1.29:29118 on your MME for CS Fallback simulation
+Configure VLR 10.20.1.29:29118 on your MME for CS Fallback simulation  
 
