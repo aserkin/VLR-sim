@@ -13,6 +13,7 @@
 import sys
 import socket
 import selectors
+import signal
 import types
 import sctp
 from   sctp import *
@@ -20,11 +21,12 @@ from hexdump import *
 import logging
 
 # create logger
+loglevel = logging.INFO
 logger = logging.getLogger(sys.argv[0])
-logger.setLevel(logging.INFO)
+logger.setLevel(loglevel)
 # create console handler and set level to debug
 ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
+ch.setLevel(loglevel)
 # create formatter
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # add formatter to ch
@@ -46,6 +48,13 @@ iename = ''
 vlr_name=b'fucking.psycho'
 rejectCause=8
 
+# SGs statistics
+loc_upd = 0
+eps_det = 0
+imsi_det = 0
+reset_ind = 0
+other_req = 0
+
 def init():
   imsi=b''
   mmename=b''
@@ -53,34 +62,34 @@ def init():
 
 # SGs Information Element handlers
 def imsi_ie(binmsg,sgsidx,iename):
-  logger.info("processing IMSI IE. sgsidx= "+str(sgsidx))
+  logger.debug("processing IMSI IE. sgsidx= "+str(sgsidx))
   imsi = bytes(binmsg)[sgsidx:sgsidx+binmsg[sgsidx+1]+2]
   sgsidx = sgsidx+binmsg[sgsidx+1]+2
   iename = "imsi"
   return sgsidx,imsi,iename
 
 def vlrname_ie(binmsg,sgsidx,iename):
-  logger.info("processing VLR name IE")
+  logger.debug("processing VLR name IE")
   sgsidx = sgsidx+binmsg[sgsidx+1]+2
   iename = "vlrname"
   return sgsidx,vlrname,iename
 
 def lai_ie(binmsg,sgsidx,iename):
-  logger.info("processing LAI IE. sgsidx= "+str(sgsidx))
+  logger.debug("processing LAI IE. sgsidx= "+str(sgsidx))
   lai = bytes(binmsg)[sgsidx:sgsidx+binmsg[sgsidx+1]+2]
   sgsidx = sgsidx+binmsg[sgsidx+1]+2
   iename = "lai"
   return sgsidx,lai,iename
 
 def mmename_ie(binmsg,sgsidx,iename):
-  logger.info("processing MME name IE. sgsidx= "+str(sgsidx))
+  logger.debug("processing MME name IE. sgsidx= "+str(sgsidx))
   mmename=bytes(binmsg)[sgsidx:sgsidx+binmsg[sgsidx+1]+2]
   sgsidx = sgsidx+binmsg[sgsidx+1]+2
   iename = "mmename"
   return sgsidx,mmename,iename
 
 def default_ie(binmsg,sgsidx,iename):
-  logger.info("not interesting IE. sgsidx= "+str(sgsidx))
+  logger.debug("not interesting IE. sgsidx= "+str(sgsidx))
   dummyie=bytes(binmsg)[sgsidx:sgsidx+binmsg[sgsidx+1]+2]
   sgsidx = sgsidx+binmsg[sgsidx+1]+2
   iename = "dummyie"
@@ -141,13 +150,15 @@ def check_lua (answer):
 
 # SGs request handlers
 def loc_update(binmsg,sgsidx,iename):
-  logger.info("loc_update: location update request received. will answer with IMSI & LAI if both present")
-  logger.info("loc_update: received message length = "+str(len(binmsg)))
+  global loc_upd
+  logger.info("location update request received")
+  logger.debug("received message length = "+str(len(binmsg)))
   #hexdump(bytes(binmsg))
+  loc_upd += 1
   sgsidx = 0
   sgsidx += 1
   answer = b''
-  logger.info("loc_update: start processing IEs. sgsidx=  "+str(sgsidx))
+  logger.debug("start processing IEs. sgsidx=  "+str(sgsidx))
   init()
   answer += bytes([location_update_accept])
   while (iename != "lai" and sgsidx<len(binmsg)):
@@ -158,20 +169,22 @@ def loc_update(binmsg,sgsidx,iename):
       answer += ie
   if (check_lua(answer) == 1):
     answer = bytes([location_update_reject,1,8,9,0,0,0,0,0,0,0,11,1,8])
-    logger.warning("loc_update: rejected - invalid mandatory information")
+    logger.warning("rejected - invalid mandatory information")
   else:
     if (check_lua(answer) == 0):
-      logger.info("loc_update: location update accepted")
+      logger.info("location update accepted")
       pass
   return answer
 
-def epc_detach_ack(binmsg,sgsidx,iename):
-  logger.info("eps detach indication received. will answer with IMSI")
-  logger.info("eps_detach_ack: received message length = "+str(len(binmsg)))
+def epc_detach_ack(binmsg,sgsidx,iename): 
+  global eps_det
+  logger.info("EPS detach indication received")
+  logger.debug("received message length = "+str(len(binmsg)))
   #hexdump(bytes(binmsg))
+  eps_det += 1
   sgsidx = 1
   answer = b''
-  logger.info("eps_detach_ack: start processing IEs. sgsidx=  "+str(sgsidx))
+  logger.debug("start processing IEs. sgsidx=  "+str(sgsidx))
   init()
   answer += bytes([eps_detach_acknoledge])
   if iename != "imsi":
@@ -180,16 +193,18 @@ def epc_detach_ack(binmsg,sgsidx,iename):
     sgsidx,ie,iename = dispatch_ie.get(binmsg[sgsidx], default_ie)(binmsg,sgsidx,iename)
     if len(ie) > 0:
       answer += ie
-      logger.info("eps_detach_ack: EPS detach accepted")
+      logger.info("EPS detach acknoledged")
   return answer
 
 def imsi_detach_ack(binmsg,sgsidx,iename):
-  logger.info("imsi detach indication received. will answer with IMSI")
-  logger.info("imsi_detach_ack: received message length = "+str(len(binmsg)))
+  global imsi_det
+  logger.info("IMSI detach indication received")
+  logger.debug("received message length = "+str(len(binmsg)))
   #hexdump(bytes(binmsg))
+  imsi_det += 1
   sgsidx = 1
   answer = b''
-  logger.info("imsi_detach_ack: start processing IEs. sgsidx=  "+str(sgsidx))
+  logger.debug("start processing IEs. sgsidx=  "+str(sgsidx))
   init()
   answer += bytes([imsi_detach_acknoledge])
   if iename != "imsi":
@@ -198,20 +213,25 @@ def imsi_detach_ack(binmsg,sgsidx,iename):
     sgsidx,ie,iename = dispatch_ie.get(binmsg[sgsidx], default_ie)(binmsg,sgsidx,iename)
     if len(ie) > 0:
       answer += ie
-      logger.info("imsi_detach_ack: IMSI detach accepted")
+      logger.info("IMSI detach acknoledged")
   return answer
 
 def reset_ack(binmsg,sgsidx,iename):
-  logger.info("reset indication received. will answer with VLR name")
+  global reset_ind
+  logger.info("MME reset indication received")
+  reset_ind += 1
   answer = bytes([reset_acknoledge])
   answer += bytes([2])
   answer += bytes([len(vlr_name)])
   answer += bytes(vlr_name)
-  logger.info("reset_ack: MME reset indication accepted")
+  logger.info("MME reset indication acknoledged")
   return answer
 
 def dummy(binmsg,sgsidx,iename):
+  global other_req
   logger.info("bullshit received. ignoring..")
+  #hexdump(bytes(binmsg))
+  other_req += 1
   return b''
 
 # This will be dictionary of SGs request handlers
@@ -252,11 +272,38 @@ def service_connection(key, mask):
               #hexdump(answer)
               data.outb = answer
               sent = sock.send(data.outb)
+              data.outb = data.outb[sent:]
             else:
+              data.outb = b''
               sent = len(data.outb)
-            data.outb = data.outb[sent:]
+              data.outb = data.outb[sent:]
 
+def dumpStats():
+    global loc_upd
+    global eps_det
+    global imsi_det
+    global reset_ind
+    global other_req
+    logger.error("SGs Statistics")
+    logger.error("Location Update Requests received: "+str(loc_upd))
+    logger.error("  EPS detach indications received: "+str(eps_det))
+    logger.error(" IMSI detach indications received: "+str(imsi_det))
+    logger.error("       Reset indications received: "+str(reset_ind))
+    logger.error("          Other messages received: "+str(other_req))
 
+def receiveSignal(signalNumber, frame):
+    if signalNumber == 2:
+        logger.error("Exiting on Ctrl-C")
+        sel.close()
+        sys.exit(0)
+    if signalNumber == 10:
+        logger.error("Dumping statistics on signal "+str(signalNumber))
+        dumpStats()
+        return
+    logger.error("Received signal "+str(signalNumber))
+    return
+
+# Main
 if len(sys.argv) != 3:
     logger.error("usage:", sys.argv[0], "<host> <port>")
     sys.exit(1)
@@ -265,19 +312,30 @@ host, port = sys.argv[1], int(sys.argv[2])
 lsock = sctpsocket_tcp(socket.AF_INET)
 lsock.bind((host, port))
 lsock.listen()
-logger.warning("listening on "+str(host)+str(port))
+logger.warning("listening on "+str(host)+":"+str(port))
 lsock.setblocking(False)
 sel.register(lsock, selectors.EVENT_READ, data=None)
 
-try:
-    while True:
+#try:
+while True:
         events = sel.select(timeout=None)
         for key, mask in events:
             if key.data is None:
                 accept_wrapper(key.fileobj)
             else:
                 service_connection(key, mask)
-except KeyboardInterrupt:
-    logger.error("caught keyboard interrupt, exiting")
-finally:
-    sel.close()
+        signal.signal(signal.SIGHUP, receiveSignal)
+        signal.signal(signal.SIGINT, receiveSignal)
+        signal.signal(signal.SIGQUIT, receiveSignal)
+        signal.signal(signal.SIGILL, receiveSignal)
+        signal.signal(signal.SIGTRAP, receiveSignal)
+        signal.signal(signal.SIGABRT, receiveSignal)
+        signal.signal(signal.SIGBUS, receiveSignal)
+        signal.signal(signal.SIGFPE, receiveSignal)
+        #signal.signal(signal.SIGKILL, receiveSignal)
+        signal.signal(signal.SIGUSR1, receiveSignal)
+        signal.signal(signal.SIGSEGV, receiveSignal)
+        signal.signal(signal.SIGUSR2, receiveSignal)
+        signal.signal(signal.SIGPIPE, receiveSignal)
+        signal.signal(signal.SIGALRM, receiveSignal)
+        signal.signal(signal.SIGTERM, receiveSignal)
