@@ -15,6 +15,8 @@ vlr.py \<host\> \<port\>
 \<host\> - IP address to listen to  
 \<port\> - TCP port to listen to. SGsAP default port is 29118  
 
+SIGUSR1 dumps SGs statistics of the running process
+
 Run it manually or add to the systemd services:  
   
 $ cat /etc/systemd/system/vlr.service  
