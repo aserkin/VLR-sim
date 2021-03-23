@@ -6,7 +6,7 @@ by MME:
 - Location Update request
 - EPS detach indication
 - IMSI detach indication
-- MME failure
+- MME failure  
 Other messages are silently ignored.  
 
 Run:  
