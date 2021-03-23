@@ -7,6 +7,7 @@ by MME:
 - EPS detach indication
 - IMSI detach indication
 - MME failure  
+
 Other messages are silently ignored.  
 
 Run:  
