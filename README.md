@@ -10,9 +10,9 @@ by MME:
 Other messages are silently ignored.  
 
 Run:  
-vlr.py \<host\> \<port\>  
+vlr.py \<ip\> \<port\>  
 
-\<host\> - IP address to listen to  
+\<ip\> - IP address to listen to  
 \<port\> - TCP port to listen to. SGsAP default port is 29118  
 
 SIGUSR1 dumps SGs statistics of the running process
@@ -29,10 +29,10 @@ $ cat /etc/systemd/system/vlr.service
  Restart=always  
  RestartSec=10  
  User=user  
- ExecStart=/home/user/SGsAP/vlr.py 10.20.1.29 29118  
+ ExecStart=/home/user/SGsAP/vlr.py 10.0.0.29 29118  
    
  [Install]  
  WantedBy=multi-user.target  
   
-Configure VLR 10.20.1.29:29118 on your MME for CS Fallback simulation  
+Configure VLR 10.0.0.29:29118 on your MME for CS Fallback simulation  
 
